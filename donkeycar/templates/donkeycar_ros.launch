@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- DEPRECATED: This launch file is replaced by improved integration -->
+    <!-- Use: roslaunch donkeycar donkey_ros_integrated.launch -->
+    <!-- New file location: launch/donkey_ros_integrated.launch -->
+    
+    <node name="deprecation_warning" pkg="rostopic" type="rostopic" 
+          args="pub -r 1 /donkey/warning std_msgs/String 
+                'data: DEPRECATED: Use donkey_ros_integrated.launch instead'" />
+
+</launch>
