@@ -31,7 +31,7 @@ class DonkeyRosInference:
         img = cv2.resize(img, (160, 120)) # Donkeycar 默认模型输入大小
         
         # B. 让 AI 大脑预测动作
-        # steering 是转向, throttle 是油门
+        # steering 是转向  throttle 是油门
         steering, throttle = self.model.run(img)
         
         # C. 转换为 ROS 兼容的数据 (Twist 消息)

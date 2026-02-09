@@ -18,7 +18,7 @@ count = 0
 last_steering = 0.0
 last_throttle = 0.0
 
-print("正在使用【手动解码模式】转换数据，避开 cv_bridge 冲突...")
+print("正在使用【手动解码模式】转换数据 避开 cv_bridge 冲突...")
 
 try:
     for topic, msg, t in bag.read_messages(topics=[IMAGE_TOPIC, CMD_TOPIC]):
