@@ -1,0 +1,8 @@
+*.bag
+*.h5
+training_data/
+training_data_from_bag/
+__pycache__/
+.vscode/
+.conda/
+miniconda3/
