@@ -66,7 +66,7 @@ class DataRecorder:
             np.savez_compressed(save_path, images=images, commands=cmds)
             print(f"✅ 保存成功！文件名: {save_path}")
         else:
-            print("❌ 未接收到任何数据，取消保存。")
+            print("❌ 未接收到任何数据，取消保存")
 
 if __name__ == '__main__':
     recorder = DataRecorder()
