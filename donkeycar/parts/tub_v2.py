@@ -60,6 +60,14 @@ class Tub(object):
                     contents[key] = value.tolist()
                 elif input_type == 'list' or input_type == 'vector':
                     contents[key] = list(value)
+                elif input_type == 'dict':
+                    # Handle dictionary data (useful for ROS sensor data)
+                    if isinstance(value, dict):
+                        # Convert dict to JSON string for storage
+                        import json
+                        contents[key] = json.dumps(value, default=str)
+                    else:
+                        contents[key] = str(value)
                 elif input_type == 'image_array':
                     # Handle image array
                     image = Image.fromarray(np.uint8(value))

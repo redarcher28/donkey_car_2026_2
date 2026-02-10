@@ -1,0 +1,299 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- DonkeyCar ROS Hardware Integration Launch File -->
+    <!-- 🚀 Complete pipeline: ROS sensors → DonkeyCar AI → ROS hardware control -->
+    <!-- Compatible with ros_hardware.py template system -->
+    
+    <!-- ============================================ -->
+    <!-- Launch Parameters Configuration -->
+    <!-- ============================================ -->
+    
+    <!-- Core Parameters -->
+    <arg name="namespace" default="donkeycar"/>
+    <arg name="car_name" default="donkey_robot"/>
+    <arg name="car_path" default="~/my_ros_car"/>
+    <arg name="model_path" default=""/>
+    <arg name="model_type" default="linear"/>
+    
+    <!-- Data Source Configuration -->
+    <arg name="use_bag" default="false"/>
+    <arg name="bag_file" default=""/>
+    <arg name="camera_topic" default="/camera/image_raw"/>
+    <arg name="imu_topic" default="/imu/data"/>
+    <arg name="lidar_topic" default="/scan"/>
+    <arg name="odom_topic" default="/odom"/>
+    <arg name="gps_topic" default="/gps/fix"/>
+    
+    <!-- Hardware Control Topics -->
+    <arg name="cmd_vel_topic" default="/cmd_vel"/>
+    <arg name="status_topic" default="/donkeycar/status"/>
+    <arg name="mode_topic" default="/donkeycar/mode"/>
+    <arg name="emergency_stop_topic" default="/emergency_stop"/>
+    
+    <!-- Optional Features -->
+    <arg name="enable_rviz" default="false"/>
+    <arg name="enable_recording" default="false"/>
+    <arg name="enable_web_ui" default="true"/>
+    <arg name="enable_diagnostics" default="true"/>
+    <arg name="enable_compressed_image" default="false"/>
+    
+    <!-- ============================================ -->
+    <!-- Sensor Hardware Nodes (Conditional) -->
+    <!-- ============================================ -->
+    
+    <!-- USB Camera Node (启用条件：不使用bag文件 AND 摄像头topic为默认值) -->
+    <group unless="$(arg use_bag)">
+        <node name="usb_cam_node" pkg="usb_cam" type="usb_cam_node" output="log"
+              if="$(eval camera_topic == '/camera/image_raw')">
+            <param name="video_device" value="/dev/video0"/>
+            <param name="image_width" value="640"/>
+            <param name="image_height" value="480"/>
+            <param name="pixel_format" value="yuyv"/>
+            <param name="camera_frame_id" value="camera_link"/>
+            <param name="framerate" value="20"/>
+            <remap from="image_raw" to="$(arg camera_topic)"/>
+        </node>
+    </group>
+    
+    <!-- IMU Sensor Node (可选，取消注释以启用) -->
+    <!--
+    <node name="imu_sensor" pkg="razor_imu_9dof" type="imu_node.py" output="log">
+        <param name="port" value="/dev/ttyUSB0"/>
+        <param name="frame_id" value="imu_link"/>
+        <remap from="imu" to="$(arg imu_topic)"/>
+    </node>
+    -->
+    
+    <!-- RPLidar Node (可选，取消注释以启用) -->
+    <!--
+    <node name="rplidar_node" pkg="rplidar_ros" type="rplidarNode" output="log">
+        <param name="serial_port" value="/dev/ttyUSB1"/>
+        <param name="serial_baudrate" value="115200"/>
+        <param name="frame_id" value="laser_link"/>
+        <param name="inverted" value="false"/>
+        <param name="angle_compensate" value="true"/>
+        <remap from="scan" to="$(arg lidar_topic)"/>
+    </node>
+    -->
+    
+    <!-- ============================================ -->
+    <!-- ROS Bag Playback (Conditional) -->
+    <!-- ============================================ -->
+    
+    <group if="$(arg use_bag)">
+        <node name="bag_player" pkg="rosbag" type="play" output="log"
+              args="$(arg bag_file) --loop --rate=1.0 --delay=2">
+        </node>
+    </group>
+    
+    <!-- ============================================ -->
+    <!-- TF Transform Configuration -->
+    <!-- ============================================ -->
+    
+    <!-- Static Transform Publishers for sensor frames -->
+    <node name="base_to_camera_tf" pkg="tf2_ros" type="static_transform_publisher"
+          args="0.15 0 0.1 0 0 0 base_link camera_link"/>
+    
+    <node name="base_to_imu_tf" pkg="tf2_ros" type="static_transform_publisher"
+          args="0.0 0 0.05 0 0 0 base_link imu_link"/>
+          
+    <node name="base_to_laser_tf" pkg="tf2_ros" type="static_transform_publisher"
+          args="0.2 0 0.15 0 0 0 base_link laser_link"/>
+    
+    <!-- ============================================ -->
+    <!-- DonkeyCar ROS Bridge Node -->
+    <!-- ============================================ -->
+    
+    <group ns="$(arg namespace)">
+        <!-- DonkeyCar Bridge Node - 核心集成节点 -->
+        <node name="donkeycar_bridge" pkg="donkeycar_ros" type="ros_hardware_bridge.py" 
+              output="screen" required="true">
+              
+            <!-- DonkeyCar Configuration -->
+            <param name="car_path" value="$(arg car_path)"/>
+            <param name="model_path" value="$(arg model_path)"/>
+            <param name="model_type" value="$(arg model_type)"/>
+            
+            <!-- Data Source Configuration -->
+            <param name="use_bag_file" value="$(arg use_bag)"/>
+            <param name="bag_file_path" value="$(arg bag_file)"/>
+            
+            <!-- ROS Topic Configuration -->
+            <param name="camera_topic" value="$(arg camera_topic)"/>
+            <param name="imu_topic" value="$(arg imu_topic)"/>
+            <param name="lidar_topic" value="$(arg lidar_topic)"/>
+            <param name="odom_topic" value="$(arg odom_topic)"/>
+            <param name="gps_topic" value="$(arg gps_topic)"/>
+            
+            <!-- Control Output Topics -->
+            <param name="cmd_vel_topic" value="$(arg cmd_vel_topic)"/>
+            <param name="status_topic" value="$(arg status_topic)"/>
+            <param name="mode_topic" value="$(arg mode_topic)"/>
+            
+            <!-- Safety Configuration -->
+            <param name="emergency_stop_topic" value="$(arg emergency_stop_topic)"/>
+            <param name="enable_safety_stop" value="true"/>
+            <param name="cmd_timeout" value="0.5"/>
+            
+            <!-- Performance Settings -->
+            <param name="drive_loop_hz" value="20"/>
+            <param name="max_loops" value="100000"/>
+            
+        </node>
+        
+        <!-- Hardware Control Interface Node -->
+        <node name="hardware_controller" pkg="donkeycar_ros" type="hardware_controller.py" 
+              output="log">
+            <param name="cmd_vel_topic" value="$(arg cmd_vel_topic)"/>
+            <param name="max_linear_speed" value="2.0"/>
+            <param name="max_angular_speed" value="1.0"/>
+            <param name="enable_safety_checks" value="true"/>
+        </node>
+        
+        <!-- System Status Monitor -->
+        <node name="status_monitor" pkg="donkeycar_ros" type="status_monitor.py" 
+              output="log" if="$(arg enable_diagnostics)">
+            <param name="status_topic" value="$(arg status_topic)"/>
+            <param name="heartbeat_hz" value="2.0"/>
+            <param name="monitor_topics" value="$(arg camera_topic),$(arg cmd_vel_topic)"/>
+        </node>
+        
+    </group>
+    
+    <!-- ============================================ -->
+    <!-- Optional Services and Tools -->
+    <!-- ============================================ -->
+    
+    <!-- Image Transport (Compression) -->
+    <node name="compressed_image_transport" pkg="image_transport" type="republish"
+          args="raw in:=$(arg camera_topic) compressed out:=$(arg camera_topic)/compressed"
+          if="$(arg enable_compressed_image)"/>
+    
+    <!-- Web Video Server for remote monitoring -->
+    <node name="web_video_server" pkg="web_video_server" type="web_video_server"
+          if="$(arg enable_web_ui)">
+        <param name="port" value="8080"/>
+        <param name="address" value="0.0.0.0"/>
+        <param name="default_stream_type" value="mjpeg"/>
+    </node>
+    
+    <!-- RViz Visualization -->
+    <node name="rviz" pkg="rviz" type="rviz" if="$(arg enable_rviz)"
+          args="-d $(find donkeycar_ros)/rviz/donkeycar_hardware.rviz"/>
+    
+    <!-- System Data Recording -->
+    <node name="session_recorder" pkg="rosbag" type="record" if="$(arg enable_recording)"
+          args="-o $(arg car_path)/data/ros_session 
+                $(arg camera_topic)
+                $(arg imu_topic) 
+                $(arg cmd_vel_topic)
+                $(arg status_topic)
+                /tf /tf_static"
+          output="log"/>
+    
+    <!-- ============================================ -->
+    <!-- System Information Display -->
+    <!-- ============================================ -->
+    
+    <!-- Launch Information Publisher -->
+    <node name="launch_info" pkg="rostopic" type="rostopic" 
+          args="pub -r 0.1 /donkeycar/launch_info std_msgs/String 
+                'data: DonkeyCar ROS Hardware Integration Active - $(arg car_name)'" 
+          output="log"/>
+
+</launch>
+        <param name="ros_sensor_bridge/lidar_topic" value="$(arg lidar_topic)"/>
+        
+        <param name="ros_hardware_controller/cmd_vel_topic" value="$(arg cmd_vel_topic)"/>
+        <param name="ros_hardware_controller/odom_topic" value="$(arg odom_topic)"/>
+        
+        <!-- Data Recording Settings -->
+        <param name="recording/enabled" value="true"/>
+        <param name="recording/path" value="$(arg data_path)"/>
+        <param name="recording/inputs" value="cam/image_array,user/angle,user/throttle,user/mode,imu/gyro_x,imu/gyro_y,imu/gyro_z,imu/accel_x,imu/accel_y,imu/accel_z,lidar/range_min,lidar/range_max"/>
+        
+        <!-- Model Settings -->
+        <param name="model/enabled" value="true"/>
+        <param name="model/path" value="$(arg data_path)/models/mypilot.h5"/>
+        
+        <!-- Control Settings -->
+        <param name="control/max_throttle" value="1.0"/>
+        <param name="control/max_steering" value="1.0"/>
+        <param name="control/deadzone" value="0.1"/>
+    </node>
+    
+    <!-- Optional: Camera Driver (uncomment if using USB camera) -->
+    <!--
+    <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="log">
+        <param name="video_device" value="/dev/video0"/>
+        <param name="image_width" value="160"/>
+        <param name="image_height" value="120"/>
+        <param name="pixel_format" value="yuyv"/>
+        <param name="camera_frame_id" value="camera_link"/>
+        <param name="io_method" value="mmap"/>
+    </node>
+    -->
+    
+    <!-- Optional: IMU Driver (uncomment if using specific IMU) -->
+    <!--
+    <node name="imu_node" pkg="imu_driver_pkg" type="imu_driver_node" output="log">
+        <param name="device" value="/dev/ttyUSB0"/>
+        <param name="frame_id" value="imu_link"/>
+        <param name="rate" value="100"/>
+    </node>
+    -->
+    
+    <!-- Optional: LiDAR Driver (uncomment if using LiDAR) -->
+    <!--
+    <node name="lidar_node" pkg="rplidar_ros" type="rplidarNode" output="log">
+        <param name="serial_port" value="/dev/ttyUSB1"/>
+        <param name="serial_baudrate" value="115200"/>
+        <param name="frame_id" value="laser"/>
+        <param name="inverted" value="false"/>
+        <param name="angle_compensate" value="true"/>
+    </node>
+    -->
+    
+    <!-- Optional: Hardware Interface Node -->
+    <!-- 
+    <node name="hardware_interface" pkg="donkey_hardware" type="hardware_interface.py" output="screen">
+        <param name="cmd_vel_topic" value="$(arg cmd_vel_topic)"/>
+        <param name="motor_controller" value="L298N"/>
+        <param name="servo_controller" value="PCA9685"/>
+    </node>
+    -->
+    
+    <!-- Image Compression (optional) -->
+    <node name="compressed_image_transport" 
+          pkg="compressed_image_transport" 
+          type="republish" 
+          args="raw in:=$(arg camera_topic) compressed out:=$(arg camera_topic)" 
+          if="$(arg use_compressed_image)"/>
+    
+    <!-- Web Interface Bridge (from original) -->
+    <node name="web_video_server" 
+          pkg="web_video_server" 
+          type="web_video_server"
+          if="$(arg web_interface)">
+        <param name="port" value="8080" />
+        <param name="address" value="0.0.0.0" />
+    </node>
+    
+    <!-- RViz Visualization (optional) -->
+    <node name="rviz" pkg="rviz" type="rviz" 
+          args="-d $(find donkeycar)/rviz/donkey_robot.rviz" 
+          if="$(arg use_rviz)"/>
+    
+    <!-- Rosbag Recording (from original) -->
+    <node name="rosbag_record" 
+          pkg="rosbag" 
+          type="record" 
+          args="-o $(arg data_path)/rosbag_session 
+                $(arg camera_topic)
+                $(arg cmd_vel_topic) 
+                $(arg imu_topic)
+                /tf
+                /tf_static" 
+          if="$(arg record_bag)"/>
+
+</launch>
